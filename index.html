@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Drone AoA Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      padding: 1rem;
+    }
+    h1, h2 { text-align: center; }
+    .charts, .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 2rem;
+      margin-top: 1rem;
+    }
+    canvas {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 1rem;
+    }
+    .controls input {
+      width: 60px;
+      margin: 0 5px;
+    }
+    .controls button {
+      margin: 0 10px;
+    }
+    #grid-result, #live-measurements {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drone AoA Live Dashboard</h1>
+
+  <div class="controls">
+    <div>
+      <h2>Set Drone Position</h2>
+      <label>X: <input type="number" id="x"></label>
+      <label>Y: <input type="number" id="y"></label>
+      <label>Z: <input type="number" id="z"></label>
+      <button onclick="send()">SEND</button>
+      <button onclick="stop()">STOP</button>
+    </div>
+    <div>
+      <h2>Grid Settings</h2>
+      <label>D (m): <input type="number" id="anchorDistance" value="2" step="0.1"></label>
+    </div>
+  </div>
+
+  <div class="charts">
+    <canvas id="azimuthChart" width="400" height="200"></canvas>
+    <canvas id="elevationChart" width="400" height="200"></canvas>
+  </div>
+
+  <div class="charts">
+    <canvas id="gridChart" width="600" height="400"></canvas>
+  </div>
+
+  <div id="grid-result">Grid Position: (waiting...)</div>
+  <div id="live-measurements">Live Coordinates: Waiting...</div>
+
+  <script>
+    function send() {
+      fetch('/position', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          x: document.getElementById('x').value,
+          y: document.getElementById('y').value,
+          z: document.getElementById('z').value,
+          active: true
+        })
+      }).then(() => alert("Started logging!"));
+    }
+
+    function stop() {
+      fetch('/position', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ active: false })
+      }).then(() => alert("Stopped logging!"));
+    }
+
+    const azimuthChart = new Chart(document.getElementById('azimuthChart').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: { scales: { y: { min: -180, max: 180 } } }
+    });
+
+    const elevationChart = new Chart(document.getElementById('elevationChart').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: { scales: { y: { min: -90, max: 90 } } }
+    });
+
+    const gridChart = new Chart(document.getElementById('gridChart').getContext('2d'), {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Anchor 1 (0,0)',
+            data: [{ x: 0, y: 0 }],
+            backgroundColor: 'black',
+            pointRadius: 8
+          },
+          {
+            label: 'Anchor 2 (D,0)',
+            data: [{ x: 2, y: 0 }],
+            backgroundColor: 'gray',
+            pointRadius: 8
+          },
+          {
+            label: 'Tag Positions (last 5s)',
+            data: [],
+            backgroundColor: 'red',
+            pointRadius: 6
+          }
+        ]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            position: 'bottom',
+            title: { display: true, text: 'X (m)' }
+          },
+          y: {
+            title: { display: true, text: 'Y (m)' }
+          }
+        }
+      }
+    });
+
+    const macColors = {};
+    const colors = ['blue', 'red', 'green', 'orange', 'purple'];
+    let colorIndex = 0;
+
+    function getColorForMac(mac) {
+      if (!macColors[mac]) {
+        macColors[mac] = colors[colorIndex % colors.length];
+        colorIndex++;
+      }
+      return macColors[mac];
+    }
+
+    async function fetchLatest() {
+      const res = await fetch('/latest');
+      if (!res.ok) return;
+      const data = await res.json();
+      const timeLabel = new Date().toLocaleTimeString();
+
+      const azimuths = {};
+      const elevations = {};
+      const now = Date.now() / 1000;
+
+      Object.entries(data).forEach(([mac, entry]) => {
+        const az = entry.azimuth;
+        const el = entry.elevation;
+
+        if (now - entry.timestamp <= 5) {
+          azimuths[mac] = az;
+          elevations[mac] = el;
+        }
+
+        let az_ds = azimuthChart.data.datasets.find(d => d.label === mac);
+        if (!az_ds) {
+          az_ds = {
+            label: mac,
+            borderColor: getColorForMac(mac),
+            data: [],
+          };
+          azimuthChart.data.datasets.push(az_ds);
+        }
+        az_ds.data.push(az);
+        if (az_ds.data.length > 20) az_ds.data.shift();
+
+        let el_ds = elevationChart.data.datasets.find(d => d.label === mac);
+        if (!el_ds) {
+          el_ds = {
+            label: mac,
+            borderColor: getColorForMac(mac),
+            data: [],
+          };
+          elevationChart.data.datasets.push(el_ds);
+        }
+        el_ds.data.push(el);
+        if (el_ds.data.length > 20) el_ds.data.shift();
+      });
+
+      azimuthChart.data.labels.push(timeLabel);
+      elevationChart.data.labels.push(timeLabel);
+      if (azimuthChart.data.labels.length > 20) azimuthChart.data.labels.shift();
+      if (elevationChart.data.labels.length > 20) elevationChart.data.labels.shift();
+
+      azimuthChart.update();
+      elevationChart.update();
+
+      // Compute grid estimation from azimuth/elevation
+      const keys = Object.keys(azimuths);
+      if (keys.length >= 2) {
+        const az1 = azimuths[keys[0]];
+        const az2 = azimuths[keys[1]];
+        const el1 = elevations[keys[0]];
+        const el2 = elevations[keys[1]];
+        const D = parseFloat(document.getElementById("anchorDistance").value) || 2;
+
+        function getVec(deg) {
+          const rad = deg * Math.PI / 180;
+          return [Math.sin(rad), Math.cos(rad)];
+        }
+
+        const [dx1, dy1] = getVec(az1);
+        const [dx2, dy2] = getVec(az2);
+
+        const denom = dx1 * dy2 - dy1 * dx2;
+        if (Math.abs(denom) > 1e-6) {
+          const t1 = (D * dy2) / denom;
+          const tag_x = t1 * dx1;
+          const tag_y = t1 * dy1;
+
+          const dist1 = Math.sqrt(tag_x ** 2 + tag_y ** 2);
+          const dist2 = Math.sqrt((tag_x - D) ** 2 + tag_y ** 2);
+          const z1 = Math.tan(el1 * Math.PI / 180) * dist1;
+          const z2 = Math.tan(el2 * Math.PI / 180) * dist2;
+          const tag_z = (z1 + z2) / 2;
+
+          const el = document.getElementById("live-measurements");
+          el.innerHTML = `Live Coordinates: (${tag_x.toFixed(2)}, ${tag_y.toFixed(2)})<br>Height from XY Plane: ${tag_z.toFixed(2)} m`;
+        }
+      }
+    }
+
+    async function fetchGridPosition() {
+      const dVal = parseFloat(document.getElementById("anchorDistance").value) || 2;
+      const res = await fetch(`/grid?D=${dVal}`);
+      const el = document.getElementById('grid-result');
+      if (!res.ok) {
+        el.textContent = 'Grid Position: Not enough data';
+        return;
+      }
+      const pos = await res.json();
+      if (pos.x !== undefined && pos.y !== undefined && pos.height !== undefined) {
+        el.innerHTML = `Grid Position: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})<br>Height from XY Plane: ${pos.height.toFixed(2)} m`;
+      } else {
+        el.textContent = 'Grid Position: Waiting...';
+      }
+    }
+
+    async function fetchGridHistory() {
+      const res = await fetch('/grid-history');
+      if (!res.ok) return;
+      const { points, D } = await res.json();
+      const tagDataset = gridChart.data.datasets[2];
+      tagDataset.data = points.map(p => ({ x: p.x, y: p.y }));
+
+      gridChart.data.datasets[0].data = [{ x: 0, y: 0 }];
+      gridChart.data.datasets[1].data = [{ x: D, y: 0 }];
+      gridChart.update();
+    }
+
+    setInterval(fetchLatest, 2000);
+    setInterval(fetchGridPosition, 4000);
+    setInterval(fetchGridHistory, 2000);
+  </script>
+</body>
+</html>
