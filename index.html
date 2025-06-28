@@ -66,7 +66,7 @@
   </div>
 
   <div id="grid-result">Grid Position: (waiting...)</div>
-  <div id="live-measurements">Live Coordinates: Waiting...</div>
+  <!-- <div id="live-measurements">Live Coordinates: Waiting...</div> -->
 
   <script>
     function send() {
@@ -161,18 +161,10 @@
       const data = await res.json();
       const timeLabel = new Date().toLocaleTimeString();
 
-      const azimuths = {};
-      const elevations = {};
       const now = Date.now() / 1000;
 
       Object.entries(data).forEach(([mac, entry]) => {
-        const az = entry.azimuth;
-        const el = entry.elevation;
-
-        if (now - entry.timestamp <= 5) {
-          azimuths[mac] = az;
-          elevations[mac] = el;
-        }
+        if (now - entry.timestamp > 5) return;
 
         let az_ds = azimuthChart.data.datasets.find(d => d.label === mac);
         if (!az_ds) {
@@ -183,7 +175,7 @@
           };
           azimuthChart.data.datasets.push(az_ds);
         }
-        az_ds.data.push(az);
+        az_ds.data.push(entry.azimuth);
         if (az_ds.data.length > 20) az_ds.data.shift();
 
         let el_ds = elevationChart.data.datasets.find(d => d.label === mac);
@@ -195,7 +187,7 @@
           };
           elevationChart.data.datasets.push(el_ds);
         }
-        el_ds.data.push(el);
+        el_ds.data.push(entry.elevation);
         if (el_ds.data.length > 20) el_ds.data.shift();
       });
 
@@ -206,55 +198,25 @@
 
       azimuthChart.update();
       elevationChart.update();
-
-      // Compute grid estimation from azimuth/elevation
-      const keys = Object.keys(azimuths);
-      if (keys.length >= 2) {
-        const az1 = azimuths[keys[0]];
-        const az2 = azimuths[keys[1]];
-        const el1 = elevations[keys[0]];
-        const el2 = elevations[keys[1]];
-        const D = parseFloat(document.getElementById("anchorDistance").value) || 2;
-
-        function getVec(deg) {
-          const rad = deg * Math.PI / 180;
-          return [Math.sin(rad), Math.cos(rad)];
-        }
-
-        const [dx1, dy1] = getVec(az1);
-        const [dx2, dy2] = getVec(az2);
-
-        const denom = dx1 * dy2 - dy1 * dx2;
-        if (Math.abs(denom) > 1e-6) {
-          const t1 = (D * dy2) / denom;
-          const tag_x = t1 * dx1;
-          const tag_y = t1 * dy1;
-
-          const dist1 = Math.sqrt(tag_x ** 2 + tag_y ** 2);
-          const dist2 = Math.sqrt((tag_x - D) ** 2 + tag_y ** 2);
-          const z1 = Math.tan(el1 * Math.PI / 180) * dist1;
-          const z2 = Math.tan(el2 * Math.PI / 180) * dist2;
-          const tag_z = (z1 + z2) / 2;
-
-          const el = document.getElementById("live-measurements");
-          el.innerHTML = `Live Coordinates: (${tag_x.toFixed(2)}, ${tag_y.toFixed(2)})<br>Height from XY Plane: ${tag_z.toFixed(2)} m`;
-        }
-      }
     }
 
     async function fetchGridPosition() {
       const dVal = parseFloat(document.getElementById("anchorDistance").value) || 2;
       const res = await fetch(`/grid?D=${dVal}`);
       const el = document.getElementById('grid-result');
+      const live = document.getElementById('live-measurements');
       if (!res.ok) {
         el.textContent = 'Grid Position: Not enough data';
+        live.textContent = 'Live Coordinates: Waiting...';
         return;
       }
       const pos = await res.json();
       if (pos.x !== undefined && pos.y !== undefined && pos.height !== undefined) {
         el.innerHTML = `Grid Position: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})<br>Height from XY Plane: ${pos.height.toFixed(2)} m`;
+        live.innerHTML = `Live Coordinates: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.height.toFixed(2)})`;
       } else {
         el.textContent = 'Grid Position: Waiting...';
+        live.textContent = 'Live Coordinates: Waiting...';
       }
     }
 
