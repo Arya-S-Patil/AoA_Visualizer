@@ -68,15 +68,22 @@ def calculate_grid():
         latest_D = float(request.args.get("D", 2.0))
         anchors = [(0, 0), (latest_D, 0)]
         azimuths = {}
+        elevations = {}
+
         for mac, data in latest_aoa.items():
-            azimuths[mac] = data["azimuth"]
+            if "azimuth" in data:
+                azimuths[mac] = data["azimuth"]
+            if "elevation" in data:
+                elevations[mac] = data["elevation"]
 
         if len(azimuths) < 2:
             return {"error": "Need 2 peers with azimuth"}, 400
 
-        peer_macs = list(azimuths.keys())[:2]  # Only take two peers
+        peer_macs = list(azimuths.keys())[:2]
         az1 = azimuths[peer_macs[0]]
         az2 = azimuths[peer_macs[1]]
+        el1 = elevations.get(peer_macs[0])
+        el2 = elevations.get(peer_macs[1])
 
         def get_unit_vector(deg):
             theta = math.radians(deg)
@@ -84,6 +91,7 @@ def calculate_grid():
 
         x1, y1 = anchors[0]
         x2, y2 = anchors[1]
+
         dx1, dy1 = get_unit_vector(az1)
         dx2, dy2 = get_unit_vector(az2)
 
@@ -95,10 +103,29 @@ def calculate_grid():
         tag_x = x1 + t1 * dx1
         tag_y = y1 + t1 * dy1
 
-        # Store the result with timestamp
-        recent_positions.append({"x": tag_x, "y": tag_y, "timestamp": time.time()})
+        # Calculate height from elevation angles
+        if el1 is not None and el2 is not None:
+            d1 = math.sqrt((tag_x - x1) ** 2 + (tag_y - y1) ** 2)
+            d2 = math.sqrt((tag_x - x2) ** 2 + (tag_y - y2) ** 2)
+            z1 = math.tan(math.radians(el1)) * d1
+            z2 = math.tan(math.radians(el2)) * d2
+            tag_z = (z1 + z2) / 2
+        else:
+            tag_z = 0.0
 
-        return {"x": tag_x, "y": tag_y, "from": peer_macs}
+        recent_positions.append({
+            "x": tag_x,
+            "y": tag_y,
+            "z": tag_z,
+            "timestamp": time.time()
+        })
+
+        return {
+            "x": tag_x,
+            "y": tag_y,
+            "height": tag_z,
+            "from": peer_macs
+        }
 
     except Exception as e:
         return {"error": str(e)}, 500
@@ -106,7 +133,7 @@ def calculate_grid():
 @app.route('/grid-history')
 def get_grid_history():
     try:
-        cutoff = time.time() - 5  # Keep points visible for 5 seconds
+        cutoff = time.time() - 5
         valid_points = [p for p in recent_positions if p["timestamp"] >= cutoff]
         return jsonify({"points": valid_points, "D": latest_D})
     except Exception as e:
