@@ -2,4 +2,5 @@ flask
 python-dotenv
 influxdb3-client
 scikit-learn
-
+pandas 
+numpy
