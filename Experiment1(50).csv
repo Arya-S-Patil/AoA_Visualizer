@@ -1,7 +1,5 @@
-#group,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE
-#datatype,long,long,long,double,double,double,long,string,string,string,string,long,dateTime:RFC3339
-#default,,,,,,,,,,,,,
-,antenna,azimuth,channel,drone_x,drone_y,drone_z,elevation,mac,peer_mac,peer_mac_1,peer_mac_2,rssi,time
+
+sn,antenna,azimuth,channel,drone_x,drone_y,drone_z,elevation,mac,peer_mac,peer_mac_1,peer_mac_2,rssi,time
 ,0,0,8,0,-0.6,-0.72,-51,20BA3608EF66,20BA36977463,,,-58,2025-06-28T11:00:05.9433661Z
 ,0,0,0,0,-0.6,-0.72,-51,20BA3608EF66,20BA36977463,,,-57,2025-06-28T11:00:06.0426359Z
 ,0,0,27,0,-0.6,-0.72,-51,20BA3608EF66,20BA36977463,,,-57,2025-06-28T11:00:06.105225Z
