@@ -1,6 +1,3 @@
-Here’s a clean, professional **README.md** draft for your repo:
-
----
 
 # AoA\_Visualizer
 
