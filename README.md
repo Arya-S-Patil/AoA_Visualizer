@@ -1,12 +1,12 @@
 
 # AoA\_Visualizer
 
-📡 **AoA\_Visualizer** is a Python-based tool to analyze and visualize experimental and calculated **Angle of Arrival (AoA)** measurements for drones and anchors, based on RSSI and position data.
+ **AoA\_Visualizer** is a Python-based tool to analyze and visualize experimental and calculated **Angle of Arrival (AoA)** measurements for drones and anchors, based on RSSI and position data.
 It supports calculating real azimuth and elevation angles with respect to defined anchor positions, comparing against experimental measurements, and producing insightful plots and error analysis.
 
 ---
 
-## 📂 Features
+##  Features
 
 ✅ Reads CSV datasets with drone positions, peer MACs, experimental azimuth & elevation.
 ✅ Computes real azimuth & elevation angles with respect to each anchor’s frame of reference.
@@ -21,7 +21,7 @@ It supports calculating real azimuth and elevation angles with respect to define
 
 ---
 
-## 📈 Example Outputs
+## Example Outputs
 
 * CSV: `average_angles_and_errors.csv` with mean angles & errors per point.
 * Plots:
@@ -31,9 +31,9 @@ It supports calculating real azimuth and elevation angles with respect to define
 
 ---
 
-## 🚀 How to Use
+##  How to Use
 
-### 🔧 Requirements
+###  Requirements
 
 * Python 3.8+
 * Install dependencies:
@@ -42,7 +42,7 @@ It supports calculating real azimuth and elevation angles with respect to define
 pip install -r requirements.txt
 ```
 
-### 📥 Input
+### Input
 
 Prepare a CSV file (example: `Experiment1(50).csv`) with columns:
 
@@ -52,7 +52,7 @@ drone_x, drone_y, drone_z, peer_mac, azimuth, elevation, rssi, …
 
 Place the file in the repository directory.
 
-### ▶️ Run
+###  Run
 
 Run the main analysis script:
 
@@ -76,7 +76,7 @@ This will:
 
 ---
 
-## 📝 Repository Structure
+## Repository Structure
 
 ```
 AoA_Visualizer/
@@ -88,7 +88,7 @@ AoA_Visualizer/
 
 ---
 
-## ✨ TODO / Future Work
+## TODO / Future Work
 
 * Add command-line interface
 * Support batch processing of multiple CSVs
@@ -102,9 +102,4 @@ AoA_Visualizer/
 [**Arya S Patil**](https://github.com/Arya-S-Patil)
 
 ---
-
-If you’d like, I can also:
-✅ generate a `requirements.txt`
-✅ write an example `analyze_angles.py` stub with CLI
-
 
